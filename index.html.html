@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QSSR Rookie Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1526;
+    --card: #141928;
+    --card2: #1a2035;
+    --border: #1e2d4a;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --accent4: #10b981;
+    --accent5: #f43f5e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --muted2: #94a3b8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0f1a2e 0%, #0a0e1a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 16px; color: #fff;
+  }
+  .header-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; }
+  .header-sub { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 20px; padding: 5px 12px;
+    font-size: 12px; color: var(--accent4); font-weight: 500;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent4);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+  /* FILTERS */
+  .filters-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 32px;
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+  }
+  .filter-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-bottom: 6px; }
+  .filter-group { display: flex; flex-direction: column; gap: 0; }
+  select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 150px;
+  }
+  select:hover, select:focus { border-color: var(--accent); }
+  .reset-btn {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+    border-radius: 8px; padding: 7px 16px;
+    font-size: 13px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .reset-btn:hover { background: rgba(0,212,255,0.2); }
+  .filter-chip-label { font-size: 11px; color: var(--muted2); font-weight: 500; display: block; margin-bottom: 3px; }
+  .filter-group { display: flex; flex-direction: column; }
+  select:disabled { opacity: 0.38; cursor: not-allowed; border-color: var(--border) !important; }
+  .filter-group.filter-active select { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+
+  /* MAIN */
+  .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+    cursor: default;
+  }
+  .kpi-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, var(--accent));
+    border-radius: 16px 16px 0 0;
+  }
+  .kpi-icon {
+    font-size: 20px; margin-bottom: 12px;
+    width: 40px; height: 40px;
+    background: var(--icon-bg, rgba(0,212,255,0.1));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 800;
+    line-height: 1;
+    background: var(--val-gradient, linear-gradient(135deg, #e2e8f0, #94a3b8));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .kpi-label { font-size: 12px; color: var(--muted2); margin-top: 6px; font-weight: 500; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* CHARTS GRID */
+  .charts-row { display: grid; gap: 16px; margin-bottom: 16px; }
+  .charts-row-2 { grid-template-columns: 1fr 1fr; }
+  .charts-row-3 { grid-template-columns: 2fr 1fr; }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    transition: border-color 0.2s;
+  }
+  .chart-card:hover { border-color: #2a3a5c; }
+  .chart-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; margin-bottom: 20px;
+  }
+  .chart-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 700;
+  }
+  .chart-sub { font-size: 12px; color: var(--muted2); margin-top: 3px; }
+  .chart-badge {
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa; border-radius: 20px;
+    padding: 3px 10px; font-size: 11px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap-sm { position: relative; height: 220px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 10px 14px;
+    background: var(--card2); color: var(--muted2);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+    font-weight: 600; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid rgba(30,45,74,0.5); transition: background 0.15s; }
+  tbody tr:hover { background: var(--card2); }
+  tbody td { padding: 10px 14px; color: var(--text); }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    font-size: 11px; font-weight: 700;
+  }
+  .rank-1 { background: rgba(245,158,11,0.2); color: #f59e0b; }
+  .rank-2 { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .rank-3 { background: rgba(180,83,9,0.15); color: #b45309; }
+  .rank-n { background: rgba(30,45,74,0.5); color: var(--muted); }
+  .progress-bar-wrap { width: 80px; height: 6px; background: var(--border); border-radius: 3px; display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .progress-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .tag-m1 { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .tag-m2 { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .tag-m3 { background: rgba(16,185,129,0.15); color: var(--accent4); }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: var(--muted2); text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* M1/M2/M3 Progress Cards */
+  .milestone-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+  .milestone-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+    position: relative; overflow: hidden;
+  }
+  .milestone-tag {
+    font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800;
+    opacity: 0.06; position: absolute; top: 12px; right: 16px;
+  }
+  .milestone-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .milestone-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .milestone-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+  .milestone-period { font-size: 11px; color: var(--muted2); margin-top: 1px; }
+  .milestone-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .milestone-stat-label { font-size: 12px; color: var(--muted2); }
+  .milestone-stat-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+  .mini-progress { height: 4px; background: var(--border); border-radius: 2px; margin-top: 14px; }
+  .mini-progress-fill { height: 100%; border-radius: 2px; }
+
+  /* FOOTER */
+  .footer {
+    text-align: center; padding: 24px;
+    font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 900px) {
+    .charts-row-2, .charts-row-3, .milestone-grid { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    .filters-bar { padding: 12px 16px; }
+    .header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo-mark">QS</div>
+    <div>
+      <div class="header-title">QSSR Rookie Performance Dashboard</div>
+      <div class="header-sub">First 90 Days Performance Tracker · 100 Employees</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      Live from Google Sheet
+    </div>
+    <div id="last-updated" style="font-size:11px;color:var(--muted);"></div>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <span class="filter-label">Filters</span>
+
+  <div class="filter-group">
+    <label class="filter-chip-label">📅 Month</label>
+    <select id="f-month">
+      <option value="all">All Months</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-chip-label">🎯 Category</label>
+    <select id="f-category">
+      <option value="all">All Categories</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-chip-label">👤 Regional Head</label>
+    <select id="f-rh">
+      <option value="all">All Regional Heads</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-chip-label">📍 Location</label>
+    <select id="f-location">
+      <option value="all">All Locations</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-chip-label">🧑‍💼 L1 Manager</label>
+    <select id="f-l1">
+      <option value="all">All L1 Managers</option>
+    </select>
+  </div>
+
+  <button class="reset-btn" style="align-self:flex-end" onclick="resetFilters()">↺ Reset All</button>
+</div>
+
+<div class="main">
+
+  <!-- KPI Cards -->
+  <div class="section-title">Key Metrics</div>
+  <div class="kpi-grid" id="kpi-grid">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- Milestone Cards -->
+  <div class="section-title">Rookie Journey — M1 · M2 · M3</div>
+  <div class="milestone-grid" id="milestone-grid"></div>
+
+  <!-- Charts Row 1 -->
+  <div class="section-title">Performance Trends</div>
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Disbursements by Month</div>
+          <div class="chart-sub">Number of disbursements across rookie months</div>
+        </div>
+        <span class="chart-badge">Monthly</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-disbs-month"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Disbursement Amount by Month</div>
+          <div class="chart-sub">Total ₹ disbursed per period</div>
+        </div>
+        <span class="chart-badge">₹ Volume</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-amt-month"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="charts-row charts-row-3" style="margin-top:16px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Regional Head Performance</div>
+          <div class="chart-sub">Disbursement amount by regional head</div>
+        </div>
+        <span class="chart-badge">Regional</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-rh"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Rookie Category Mix</div>
+          <div class="chart-sub">Employee distribution M1/M2/M3</div>
+        </div>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="chart-cat-pie"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 3 -->
+  <div class="charts-row charts-row-2" style="margin-top:16px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Location-wise Disbursements</div>
+          <div class="chart-sub">Count and amount by city</div>
+        </div>
+        <span class="chart-badge">City</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-location"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">PST Meetings — Assigned vs Achieved</div>
+          <div class="chart-sub">Meeting completion rate by rookie stage</div>
+        </div>
+        <span class="chart-badge">PST</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-pst"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Top L1 Managers Table -->
+  <div style="margin-top:24px;">
+    <div class="section-title">Top L1 Manager Leaderboard</div>
+    <div class="chart-card">
+      <div class="table-wrap">
+        <table id="l1-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>L1 Manager</th>
+              <th>Rookies</th>
+              <th>Disbursements</th>
+              <th>Disb. Amount</th>
+              <th>Share</th>
+            </tr>
+          </thead>
+          <tbody id="l1-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee List -->
+  <div style="margin-top:24px;">
+    <div class="section-title">Employee Performance Table</div>
+    <div class="chart-card">
+      <div class="table-wrap">
+        <table id="emp-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Location</th>
+              <th>L1 Manager</th>
+              <th>Regional Head</th>
+              <th>Category</th>
+              <th>Month</th>
+              <th>Total Meetings</th>
+              <th>Logins</th>
+              <th>Login Active Partner</th>
+              <th>Disbursements</th>
+              <th>Disb. Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="emp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Live data from <a href="https://docs.google.com/spreadsheets/d/1TGILL1OuVshz-T94zAVbV_T6-h5n4XNny12F4FHjQZw/edit?usp=sharing" target="_blank">Google Sheet</a> · Dashboard auto-refreshes on load · Built for QSSR Business Review
+</div>
+
+<script>
+const SHEET_ID = '1TGILL1OuVshz-T94zAVbV_T6-h5n4XNny12F4FHjQZw';
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+// ─── EMBEDDED FALLBACK DATA (from uploaded file) ───────────────────────────
+const FALLBACK_DATA = [{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nirav R Shah","Total Meetings":0,"Number of Logins":2,"#of Disbs":2,"Login Amount":1150000,"Disb Amount":1150000,"Exit Date":null},{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":0,"Number of Logins":3,"#of Disbs":2,"Login Amount":4750000,"Disb Amount":514400,"Exit Date":null},{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":0,"Number of Logins":5,"#of Disbs":4,"Login Amount":9500000,"Disb Amount":0,"Exit Date":null}];
+
+let ALL_DATA = [];
+let charts = {};
+
+// ─── CHART DEFAULTS ─────────────────────────────────────────────────────────
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = 'DM Sans';
+const COLORS = ['#00d4ff','#7c3aed','#f59e0b','#10b981','#f43f5e','#3b82f6','#ec4899','#8b5cf6'];
+
+function fmt(n) {
+  if (n >= 1e7) return '₹' + (n/1e7).toFixed(1) + 'Cr';
+  if (n >= 1e5) return '₹' + (n/1e5).toFixed(1) + 'L';
+  if (n >= 1e3) return '₹' + (n/1e3).toFixed(0) + 'K';
+  return '₹' + n;
+}
+function fmtNum(n) {
+  if (n >= 1e7) return (n/1e7).toFixed(1) + 'Cr';
+  if (n >= 1e5) return (n/1e5).toFixed(1) + 'L';
+  return n.toLocaleString('en-IN');
+}
+
+// ─── PARSE LIVE CSV ──────────────────────────────────────────────────────────
+async function fetchLiveData() {
+  try {
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error('fetch failed');
+    const csv = await res.text();
+    const rows = csv.trim().split('\n');
+    const headers = rows[0].split(',').map(h => h.replace(/"/g,'').trim());
+    const data = [];
+    for (let i = 1; i < rows.length; i++) {
+      const vals = rows[i].match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g) || [];
+      const obj = {};
+      headers.forEach((h, j) => {
+        let v = (vals[j] || '').replace(/"/g,'').trim();
+        obj[h] = v;
+      });
+      if (obj['Emp. ID']) data.push(obj);
+    }
+    return data.map(r => ({
+      'Emp. ID': r['Emp. ID'],
+      'Name': r['Name'],
+      'Location': r['Location'],
+      'L1 Manager Name': r['L1 Manager Name'],
+      'Rookie Category': r['Rookie Category'],
+      'Rookie Category Month': r['Rookie Category Month'],
+      'Regional Head': r['Regional Head'],
+      'Total Meetings': parseFloat(r['Total Meetings']) || 0,
+      'Number of Logins': parseFloat(r['Number of Logins']) || 0,
+      '#of Disbs': parseFloat(r['#of Disbs (Number of Disbursements)']) || 0,
+      'Login Amount': parseFloat(r['Login Amount']) || 0,
+      'Login Active Partner': parseFloat(r['Login Active Partner']) || 0,
+      'Disb Amount': parseFloat(r['$ Disbs (Total Disbursement Amount in $)']) || 0,
+      'Exit Date': r['Exit Date'] || null,
+      'PST Assigned': parseFloat(r['PST Meetings Assigned ']) || 0,
+      'PST Ach': parseFloat(r['PST Meetings Ach']) || 0,
+    }));
+  } catch(e) {
+    console.warn('Live fetch failed, using embedded data:', e.message);
+    return null;
+  }
+}
+
+// ─── CASCADING FILTERS ───────────────────────────────────────────────────────
+// Filter order: Month → Category → Regional Head → Location → L1 Manager
+// Each filter's options are derived from data matching ALL upstream selections.
+
+function getFilters() {
+  return {
+    month:    document.getElementById('f-month').value,
+    category: document.getElementById('f-category').value,
+    rh:       document.getElementById('f-rh').value,
+    location: document.getElementById('f-location').value,
+    l1:       document.getElementById('f-l1').value,
+  };
+}
+
+// Apply only upstream filters (filters before the given field) to produce pool for downstream options
+function poolFor(field) {
+  const f = getFilters();
+  const order = ['month','category','rh','location','l1'];
+  const idx = order.indexOf(field);
+  return ALL_DATA.filter(r => {
+    // apply all filters BEFORE this field
+    if (idx > 0 && f.month    !== 'all' && r['Rookie Category Month'] !== f.month)    return false;
+    if (idx > 1 && f.category !== 'all' && r['Rookie Category']       !== f.category) return false;
+    if (idx > 2 && f.rh       !== 'all' && r['Regional Head']         !== f.rh)       return false;
+    if (idx > 3 && f.location !== 'all' && r['Location']              !== f.location) return false;
+    return true;
+  });
+}
+
+function rebuildSelect(id, allLabel, values, currentVal) {
+  const sel = document.getElementById(id);
+  const prev = currentVal !== undefined ? currentVal : sel.value;
+  sel.innerHTML = `<option value="all">${allLabel}</option>`;
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+  // restore previous selection if still valid
+  if (prev !== 'all' && values.includes(prev)) sel.value = prev;
+  else sel.value = 'all';
+  // mark active
+  sel.closest('.filter-group').classList.toggle('filter-active', sel.value !== 'all');
+}
+
+function updateCascadingDropdowns() {
+  const f = getFilters();
+
+  // Category options → filtered by selected month
+  const catPool = poolFor('category');
+  const cats = [...new Set(catPool.map(r => r['Rookie Category']).filter(Boolean))].sort();
+  rebuildSelect('f-category', 'All Categories', cats);
+
+  // Regional Head options → filtered by month + category
+  const rhPool = poolFor('rh');
+  const rhs = [...new Set(rhPool.map(r => r['Regional Head']).filter(Boolean))].sort();
+  rebuildSelect('f-rh', 'All Regional Heads', rhs);
+
+  // Location options → filtered by month + category + rh
+  const locPool = poolFor('location');
+  const locs = [...new Set(locPool.map(r => r['Location']).filter(Boolean))].sort();
+  rebuildSelect('f-location', 'All Locations', locs);
+
+  // L1 Manager options → filtered by month + category + rh + location
+  const l1Pool = poolFor('l1');
+  const l1s = [...new Set(l1Pool.map(r => r['L1 Manager Name']).filter(Boolean))].sort();
+  rebuildSelect('f-l1', 'All L1 Managers', l1s);
+}
+
+function applyFilters(data) {
+  const f = getFilters();
+  return data.filter(r => {
+    if (f.month    !== 'all' && r['Rookie Category Month'] !== f.month)    return false;
+    if (f.category !== 'all' && r['Rookie Category']       !== f.category) return false;
+    if (f.rh       !== 'all' && r['Regional Head']         !== f.rh)       return false;
+    if (f.location !== 'all' && r['Location']              !== f.location) return false;
+    if (f.l1       !== 'all' && r['L1 Manager Name']       !== f.l1)       return false;
+    return true;
+  });
+}
+
+function onFilterChange() {
+  updateCascadingDropdowns();
+  renderAll();
+}
+
+function resetFilters() {
+  ['f-month','f-category','f-rh','f-location','f-l1'].forEach(id => {
+    document.getElementById(id).value = 'all';
+    document.getElementById(id).closest('.filter-group').classList.remove('filter-active');
+  });
+  updateCascadingDropdowns();
+  renderAll();
+}
+
+// ─── INITIAL POPULATION OF MONTH DROPDOWN ────────────────────────────────────
+function populateMonthDropdown() {
+  const monthOrder = ['Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26'];
+  const available = [...new Set(ALL_DATA.map(r => r['Rookie Category Month']).filter(Boolean))];
+  const sorted = monthOrder.filter(m => available.includes(m));
+  const sel = document.getElementById('f-month');
+  sel.innerHTML = '<option value="all">All Months</option>';
+  sorted.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m; sel.appendChild(o);
+  });
+}
+
+// ─── KPI CARDS ───────────────────────────────────────────────────────────────
+function renderKPIs(data) {
+  const total = [...new Set(data.map(r => r['Emp. ID']))].length;
+  const totalDisbs = data.reduce((s,r) => s + r['#of Disbs'], 0);
+  const totalDisbAmt = data.reduce((s,r) => s + r['Disb Amount'], 0);
+  const totalLoginAmt = data.reduce((s,r) => s + r['Login Amount'], 0);
+  const totalMeetings = data.reduce((s,r) => s + r['Total Meetings'], 0);
+  const exits = data.filter(r => r['Exit Date']).length;
+  const attrRate = total > 0 ? ((exits/total)*100).toFixed(1) : 0;
+  const avgDisbs = total > 0 ? (totalDisbs/total).toFixed(1) : 0;
+
+  const totalLAP = data.reduce((s,r) => s + (r['Login Active Partner'] || 0), 0);
+  const avgLAP = total > 0 ? (totalLAP / total).toFixed(1) : 0;
+
+  const kpis = [
+    { icon:'👥', label:'Total Rookies', value: total, sub:'Unique employees', color:'#00d4ff', ibg:'rgba(0,212,255,0.1)', grad:'linear-gradient(135deg,#00d4ff,#0ea5e9)' },
+    { icon:'💰', label:'Total Disb. Amount', value: fmt(totalDisbAmt), sub:'Cumulative disbursed', color:'#10b981', ibg:'rgba(16,185,129,0.1)', grad:'linear-gradient(135deg,#10b981,#059669)' },
+    { icon:'📊', label:'Total Disbursements', value: totalDisbs, sub:'Number of disbursements', color:'#7c3aed', ibg:'rgba(124,58,237,0.1)', grad:'linear-gradient(135deg,#7c3aed,#6d28d9)' },
+    { icon:'🔗', label:'Login Pipeline', value: fmt(totalLoginAmt), sub:'Total login amount', color:'#f59e0b', ibg:'rgba(245,158,11,0.1)', grad:'linear-gradient(135deg,#f59e0b,#d97706)' },
+    { icon:'🤝', label:'Total Meetings', value: totalMeetings.toLocaleString(), sub:'Across all rookies', color:'#3b82f6', ibg:'rgba(59,130,246,0.1)', grad:'linear-gradient(135deg,#3b82f6,#2563eb)' },
+    { icon:'🤝', label:'Login Active Partner', value: totalLAP, sub:'Avg ' + avgLAP + ' per rookie', color:'#06b6d4', ibg:'rgba(6,182,212,0.1)', grad:'linear-gradient(135deg,#06b6d4,#0891b2)' },
+    { icon:'⚠️', label:'Attrition Rate', value: attrRate + '%', sub: exits + ' exits recorded', color:'#f43f5e', ibg:'rgba(244,63,94,0.1)', grad:'linear-gradient(135deg,#f43f5e,#e11d48)' },
+    { icon:'📈', label:'Avg Disbs/Rookie', value: avgDisbs, sub:'Per employee', color:'#ec4899', ibg:'rgba(236,72,153,0.1)', grad:'linear-gradient(135deg,#ec4899,#db2777)' },
+    { icon:'🏙️', label:'Locations Active', value: [...new Set(data.map(r => r['Location']).filter(Boolean))].length, sub:'Cities covered', color:'#8b5cf6', ibg:'rgba(139,92,246,0.1)', grad:'linear-gradient(135deg,#8b5cf6,#7c3aed)' },
+  ];
+
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
+    <div class="kpi-card" style="--accent-color:${k.color}">
+      <div class="kpi-icon" style="background:${k.ibg}">${k.icon}</div>
+      <div class="kpi-value" style="--val-gradient:${k.grad}">${k.value}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+// ─── MILESTONE CARDS ─────────────────────────────────────────────────────────
+function renderMilestones(data) {
+  const cats = ['M1','M2','M3'];
+  const colors = ['#00d4ff','#a78bfa','#10b981'];
+  const periods = ['Month 1 (Onboarding)','Month 2 (Ramp-up)','Month 3 (Steady State)'];
+
+  document.getElementById('milestone-grid').innerHTML = cats.map((cat, i) => {
+    const d = data.filter(r => r['Rookie Category'] === cat);
+    const emps = [...new Set(d.map(r => r['Emp. ID']))].length;
+    const disbs = d.reduce((s,r) => s + r['#of Disbs'], 0);
+    const disbAmt = d.reduce((s,r) => s + r['Disb Amount'], 0);
+    const mtgs = d.reduce((s,r) => s + r['Total Meetings'], 0);
+    const pstA = d.reduce((s,r) => s + r['PST Assigned'], 0);
+    const pstAch = d.reduce((s,r) => s + (r['PST Ach'] || 0), 0);
+    const pstPct = pstA > 0 ? Math.round((pstAch/pstA)*100) : 0;
+    const total = data.length;
+    const share = total > 0 ? Math.round((d.length/total)*100) : 0;
+
+    return `
+      <div class="milestone-card">
+        <div class="milestone-tag">${cat}</div>
+        <div class="milestone-header">
+          <div class="milestone-dot" style="background:${colors[i]}"></div>
+          <div>
+            <div class="milestone-name" style="color:${colors[i]}">${cat}</div>
+            <div class="milestone-period">${periods[i]}</div>
+          </div>
+        </div>
+        <div class="milestone-stat">
+          <span class="milestone-stat-label">👥 Rookies</span>
+          <span class="milestone-stat-val">${emps}</span>
+        </div>
+        <div class="milestone-stat">
+          <span class="milestone-stat-label">💰 Disb. Amount</span>
+          <span class="milestone-stat-val">${fmt(disbAmt)}</span>
+        </div>
+        <div class="milestone-stat">
+          <span class="milestone-stat-label">📊 Disbursements</span>
+          <span class="milestone-stat-val">${disbs}</span>
+        </div>
+        <div class="milestone-stat">
+          <span class="milestone-stat-label">🤝 Meetings</span>
+          <span class="milestone-stat-val">${mtgs}</span>
+        </div>
+        <div class="milestone-stat">
+          <span class="milestone-stat-label">🎯 PST Completion</span>
+          <span class="milestone-stat-val">${pstPct}%</span>
+        </div>
+        <div class="mini-progress">
+          <div class="mini-progress-fill" style="width:${pstPct}%;background:${colors[i]}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts(data) {
+  const months = ['Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26'];
+
+  // 1. Disbursements by month
+  destroyChart('disbs-month');
+  const disbsByMonth = months.map(m => data.filter(r => r['Rookie Category Month']===m).reduce((s,r) => s+r['#of Disbs'],0));
+  charts['disbs-month'] = new Chart(document.getElementById('chart-disbs-month'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Disbursements',
+        data: disbsByMonth,
+        backgroundColor: months.map((_,i) => `rgba(0,212,255,${0.3+i*0.1})`),
+        borderColor: '#00d4ff',
+        borderWidth: 2,
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } }
+      }
+    }
+  });
+
+  // 2. Disb Amount by month
+  destroyChart('amt-month');
+  const amtByMonth = months.map(m => data.filter(r => r['Rookie Category Month']===m).reduce((s,r) => s+r['Disb Amount'],0));
+  charts['amt-month'] = new Chart(document.getElementById('chart-amt-month'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Disb. Amount',
+        data: amtByMonth,
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124,58,237,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#7c3aed',
+        pointRadius: 5,
+        pointHoverRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b', callback: v => fmt(v) } }
+      }
+    }
+  });
+
+  // 3. Regional Head bar
+  destroyChart('rh');
+  const rhs = [...new Set(data.map(r => r['Regional Head']).filter(Boolean))].sort();
+  const rhAmts = rhs.map(rh => data.filter(r => r['Regional Head']===rh).reduce((s,r) => s+r['Disb Amount'],0));
+  charts['rh'] = new Chart(document.getElementById('chart-rh'), {
+    type: 'bar',
+    data: {
+      labels: rhs.map(r => r.split(' ').slice(0,2).join(' ')),
+      datasets: [{
+        label: 'Disb. Amount',
+        data: rhAmts,
+        backgroundColor: COLORS.slice(0, rhs.length).map(c => c + '99'),
+        borderColor: COLORS.slice(0, rhs.length),
+        borderWidth: 2,
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b', callback: v => fmt(v) } },
+        y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+      }
+    }
+  });
+
+  // 4. Category pie
+  destroyChart('cat-pie');
+  const cats = ['M1','M2','M3'];
+  const catCounts = cats.map(c => [...new Set(data.filter(r => r['Rookie Category']===c).map(r => r['Emp. ID']))].length);
+  charts['cat-pie'] = new Chart(document.getElementById('chart-cat-pie'), {
+    type: 'doughnut',
+    data: {
+      labels: cats,
+      datasets: [{
+        data: catCounts,
+        backgroundColor: ['rgba(0,212,255,0.8)','rgba(124,58,237,0.8)','rgba(16,185,129,0.8)'],
+        borderColor: '#141928',
+        borderWidth: 3,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16, font: { size: 13 } } }
+      }
+    }
+  });
+
+  // 5. Location bar
+  destroyChart('location');
+  const locs = [...new Set(data.map(r => r['Location']).filter(Boolean))].sort();
+  const locDisbs = locs.map(l => data.filter(r => r['Location']===l).reduce((s,r) => s+r['#of Disbs'],0));
+  const locAmts = locs.map(l => data.filter(r => r['Location']===l).reduce((s,r) => s+r['Disb Amount'],0));
+  charts['location'] = new Chart(document.getElementById('chart-location'), {
+    type: 'bar',
+    data: {
+      labels: locs,
+      datasets: [
+        { label: 'Disbursements', data: locDisbs, backgroundColor: 'rgba(0,212,255,0.7)', borderRadius: 6, yAxisID: 'y' },
+        { label: 'Disb Amount (L)', data: locAmts.map(v => +(v/100000).toFixed(1)), backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 6, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      scales: {
+        x: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' }, title: { display: true, text: 'Disbs', color: '#64748b' } },
+        y1: { position: 'right', grid: { display: false }, ticks: { color: '#f59e0b', callback: v => v + 'L' }, title: { display: true, text: 'Amount (L)', color: '#f59e0b' } }
+      }
+    }
+  });
+
+  // 6. PST chart
+  destroyChart('pst');
+  const pstAssigned = cats.map(c => data.filter(r => r['Rookie Category']===c).reduce((s,r) => s+(r['PST Assigned']||0),0));
+  const pstAch = cats.map(c => data.filter(r => r['Rookie Category']===c).reduce((s,r) => s+(r['PST Ach']||0),0));
+  charts['pst'] = new Chart(document.getElementById('chart-pst'), {
+    type: 'bar',
+    data: {
+      labels: cats,
+      datasets: [
+        { label: 'Assigned', data: pstAssigned, backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 6 },
+        { label: 'Achieved', data: pstAch, backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      scales: {
+        x: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#1e2d4a' }, ticks: { color: '#64748b' } }
+      }
+    }
+  });
+}
+
+// ─── L1 TABLE ────────────────────────────────────────────────────────────────
+function renderL1Table(data) {
+  const l1Map = {};
+  data.forEach(r => {
+    const l1 = r['L1 Manager Name'];
+    if (!l1) return;
+    if (!l1Map[l1]) l1Map[l1] = { emps: new Set(), disbs: 0, amt: 0 };
+    l1Map[l1].emps.add(r['Emp. ID']);
+    l1Map[l1].disbs += r['#of Disbs'];
+    l1Map[l1].amt += r['Disb Amount'];
+  });
+  const sorted = Object.entries(l1Map).sort((a,b) => b[1].amt - a[1].amt);
+  const maxAmt = sorted[0]?.[1].amt || 1;
+
+  document.getElementById('l1-tbody').innerHTML = sorted.map(([l1, d], i) => {
+    const rank = i+1;
+    const rankClass = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n';
+    const pct = Math.round((d.amt/maxAmt)*100);
+    return `<tr>
+      <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+      <td>${l1}</td>
+      <td>${d.emps.size}</td>
+      <td>${d.disbs}</td>
+      <td>${fmt(d.amt)}</td>
+      <td>
+        <span style="font-size:12px;color:var(--muted2)">${pct}%</span>
+        <span class="progress-bar-wrap"><span class="progress-bar-fill" style="width:${pct}%"></span></span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── EMP TABLE ───────────────────────────────────────────────────────────────
+function renderEmpTable(data) {
+  // Deduplicate by emp+category to get one row per employee-month
+  const seen = new Set();
+  const rows = data.filter(r => {
+    const key = r['Emp. ID'] + r['Rookie Category'];
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  const catTag = c => `<span class="tag tag-${c.toLowerCase()}">${c}</span>`;
+  const statusBadge = exit => exit
+    ? `<span style="color:#f43f5e;font-size:11px;font-weight:600">● Exited</span>`
+    : `<span style="color:#10b981;font-size:11px;font-weight:600">● Active</span>`;
+
+  document.getElementById('emp-tbody').innerHTML = rows.slice(0, 100).map(r => `
+    <tr>
+      <td><div style="font-weight:500">${r['Name'] || '—'}</div><div style="font-size:11px;color:var(--muted)">${r['Emp. ID']}</div></td>
+      <td>${r['Location'] || '—'}</td>
+      <td style="font-size:12px">${r['L1 Manager Name'] || '—'}</td>
+      <td style="font-size:12px">${r['Regional Head']?.split(' ').slice(0,2).join(' ') || '—'}</td>
+      <td>${catTag(r['Rookie Category'] || 'M1')}</td>
+      <td style="font-size:12px">${r['Rookie Category Month'] || '—'}</td>
+      <td>${r['Total Meetings']}</td>
+      <td>${r['Number of Logins']}</td>
+      <td>${r['Login Active Partner'] || 0}</td>
+      <td>${r['#of Disbs']}</td>
+      <td>${fmt(r['Disb Amount'])}</td>
+      <td>${statusBadge(r['Exit Date'])}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────────────────────────
+function renderAll() {
+  const filtered = applyFilters(ALL_DATA);
+  renderKPIs(filtered);
+  renderMilestones(filtered);
+  renderCharts(filtered);
+  renderL1Table(filtered);
+  renderEmpTable(filtered);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function init() {
+  document.getElementById('last-updated').textContent = 'Loading...';
+
+  // Try live data first
+  const live = await fetchLiveData();
+
+  if (live && live.length > 10) {
+    ALL_DATA = live;
+    document.getElementById('last-updated').textContent = '✓ Live data loaded · ' + new Date().toLocaleTimeString();
+  } else {
+    // Use processed fallback
+    ALL_DATA = buildFallbackData();
+    document.getElementById('last-updated').textContent = '⚡ Offline data · Make sheet public to sync live';
+  }
+
+  // Populate all dropdowns from full data
+  populateMonthDropdown();
+  updateCascadingDropdowns();
+  renderAll();
+
+  // Wire up cascading event listeners
+  // Month changes → rebuild everything downstream
+  document.getElementById('f-month').addEventListener('change', onFilterChange);
+  // Category changes → rebuild RH, Location, L1
+  document.getElementById('f-category').addEventListener('change', onFilterChange);
+  // RH changes → rebuild Location, L1
+  document.getElementById('f-rh').addEventListener('change', onFilterChange);
+  // Location changes → rebuild L1
+  document.getElementById('f-location').addEventListener('change', onFilterChange);
+  // L1 is last → just render
+  document.getElementById('f-l1').addEventListener('change', () => {
+    document.getElementById('f-l1').closest('.filter-group').classList.toggle('filter-active', document.getElementById('f-l1').value !== 'all');
+    renderAll();
+  });
+}
+
+function buildFallbackData() {
+  return [{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":1150000.0,"Disb Amount":1150000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":3.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":4750000.0,"Disb Amount":514400.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100786","Name":"Kuntal Rakeshbhai Bhavsar","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":5.0,"Login Active Partner":2.0,"#of Disbs":4.0,"Login Amount":9500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":0.0},{"Emp. ID":"AMB100787","Name":"Aniruddhsinh G Padhiyar","Location":"Rajkot","L1 Manager Name":"Rajput Hiteshsinh Chandusinh","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100787","Name":"Aniruddhsinh G Padhiyar","Location":"Rajkot","L1 Manager Name":"Rajput Hiteshsinh Chandusinh","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46035.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100794","Name":"Imran Pasha","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100794","Name":"Imran Pasha","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100794","Name":"Imran Pasha","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M3","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100788","Name":"Brajesh Kumar Jha","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100788","Name":"Brajesh Kumar Jha","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46053.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100789","Name":"Ishwar Sharma","Location":"New Delhi","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100789","Name":"Ishwar Sharma","Location":"New Delhi","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100789","Name":"Ishwar Sharma","Location":"New Delhi","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":4000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100798","Name":"Taj Mohamad","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":41.0,"Number of Logins":7.0,"Login Active Partner":3.0,"#of Disbs":5.0,"Login Amount":64771928.0,"Disb Amount":10900000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100798","Name":"Taj Mohamad","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":41.0,"Number of Logins":6.0,"Login Active Partner":4.0,"#of Disbs":5.0,"Login Amount":18500000.0,"Disb Amount":9411824.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":1.0},{"Emp. ID":"AMB100798","Name":"Taj Mohamad","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":35.0,"Number of Logins":3.0,"Login Active Partner":3.0,"#of Disbs":3.0,"Login Amount":17000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100799","Name":"Sanjay Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":35.0,"Number of Logins":4.0,"Login Active Partner":4.0,"#of Disbs":4.0,"Login Amount":21900000.0,"Disb Amount":2250000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100799","Name":"Sanjay Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":49.0,"Number of Logins":6.0,"Login Active Partner":5.0,"#of Disbs":6.0,"Login Amount":23479000.0,"Disb Amount":6203208.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":1.0},{"Emp. ID":"AMB100799","Name":"Sanjay Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":40.0,"Number of Logins":7.0,"Login Active Partner":6.0,"#of Disbs":7.0,"Login Amount":38300000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":5.0,"PST Ach":5.0},{"Emp. ID":"AMB100800","Name":"Tinkoli","Location":"Noida","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":59.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":1.0},{"Emp. ID":"AMB100800","Name":"Tinkoli","Location":"Noida","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":109.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100800","Name":"Tinkoli","Location":"Noida","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":59.0,"Number of Logins":1.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":1800000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100801","Name":"Vikas","Location":"New Delhi","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":48.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100801","Name":"Vikas","Location":"New Delhi","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":69.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":1900000.0,"Disb Amount":1263800.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100801","Name":"Vikas","Location":"New Delhi","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":57.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100803","Name":"Utkarsh Thakur","Location":"Gurgaon","L1 Manager Name":"Deepak Thakur","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":19.0,"Number of Logins":18.0,"Login Active Partner":11.0,"#of Disbs":17.0,"Login Amount":193288841.0,"Disb Amount":172760614.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100803","Name":"Utkarsh Thakur","Location":"Gurgaon","L1 Manager Name":"Deepak Thakur","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":70.0,"Number of Logins":24.0,"Login Active Partner":15.0,"#of Disbs":23.0,"Login Amount":158341105.0,"Disb Amount":143700816.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100803","Name":"Utkarsh Thakur","Location":"Gurgaon","L1 Manager Name":"Deepak Thakur","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":72.0,"Number of Logins":5.0,"Login Active Partner":5.0,"#of Disbs":5.0,"Login Amount":261937900.0,"Disb Amount":11785000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100804","Name":"Akshay K M","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46004.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100805","Name":"Raju Mehra","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100805","Name":"Raju Mehra","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100805","Name":"Raju Mehra","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46056.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100796","Name":"NARENDRA PATEL","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nirav R Shah","Total Meetings":15.0,"Number of Logins":2.0,"Login Active Partner":1.0,"#of Disbs":2.0,"Login Amount":38500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":7.0,"PST Ach":0.0},{"Emp. ID":"AMB100796","Name":"NARENDRA PATEL","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":16.0,"Number of Logins":3.0,"Login Active Partner":2.0,"#of Disbs":3.0,"Login Amount":7500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100796","Name":"NARENDRA PATEL","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":17.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":7000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100797","Name":"HARDIK A VAGHASIYA","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nirav R Shah","Total Meetings":33.0,"Number of Logins":5.0,"Login Active Partner":4.0,"#of Disbs":4.0,"Login Amount":15499999.0,"Disb Amount":3440000.0,"Exit Date":null,"PST Assigned":6.0,"PST Ach":3.0},{"Emp. ID":"AMB100797","Name":"HARDIK A VAGHASIYA","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":34.0,"Number of Logins":12.0,"Login Active Partner":9.0,"#of Disbs":9.0,"Login Amount":35700000.0,"Disb Amount":1500000.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100797","Name":"HARDIK A VAGHASIYA","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":32.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":7200000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100785","Name":"Murthy H N","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46017.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100793","Name":"Mitesh Singh","Location":"New Delhi","L1 Manager Name":"Sitender .","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":11.0,"PST Ach":0.0},{"Emp. ID":"AMB100793","Name":"Mitesh Singh","Location":"New Delhi","L1 Manager Name":"Sitender .","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100793","Name":"Mitesh Singh","Location":"New Delhi","L1 Manager Name":"Sitender .","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100810","Name":"Sonika","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":29.0,"Number of Logins":2.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":24202650.0,"Disb Amount":24202650.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100810","Name":"Sonika","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":43.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":6900000.0,"Disb Amount":6700000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100810","Name":"Sonika","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":13.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100811","Name":"Sunil Kumar","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":29.0,"Number of Logins":6.0,"Login Active Partner":3.0,"#of Disbs":4.0,"Login Amount":11682925.0,"Disb Amount":5215132.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100811","Name":"Sunil Kumar","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":30.0,"Number of Logins":5.0,"Login Active Partner":3.0,"#of Disbs":4.0,"Login Amount":9600000.0,"Disb Amount":1600000.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100811","Name":"Sunil Kumar","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":7.0,"Number of Logins":3.0,"Login Active Partner":2.0,"#of Disbs":3.0,"Login Amount":8500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100813","Name":"Lokesh Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":46.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":3000000.0,"Disb Amount":3000000.0,"Exit Date":null,"PST Assigned":10.0,"PST Ach":1.0},{"Emp. ID":"AMB100813","Name":"Lokesh Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":61.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":8.0,"PST Ach":5.0},{"Emp. ID":"AMB100813","Name":"Lokesh Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":17.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100817","Name":"Mohit Sharma","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100817","Name":"Mohit Sharma","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100817","Name":"Mohit Sharma","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100819","Name":"Hitesh Kumar Chaudhary","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46035.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100821","Name":"Arya Bhatt","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":9.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":5000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100821","Name":"Arya Bhatt","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":18.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100821","Name":"Arya Bhatt","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":11.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":12000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100822","Name":"Ankit Raghav","Location":"New Delhi","L1 Manager Name":"Ajay Kumar Pandoi","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":50.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":2123777.0,"Disb Amount":2000000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100822","Name":"Ankit Raghav","Location":"New Delhi","L1 Manager Name":"Ajay Kumar Pandoi","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":70.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100822","Name":"Ankit Raghav","Location":"New Delhi","L1 Manager Name":"Ajay Kumar Pandoi","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":18.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":8000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":1.0},{"Emp. ID":"AMB100823","Name":"Gautam Singh Rathore","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":15.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100823","Name":"Gautam Singh Rathore","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":46.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100823","Name":"Gautam Singh Rathore","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":8.0,"Number of Logins":5.0,"Login Active Partner":1.0,"#of Disbs":5.0,"Login Amount":6250000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100824","Name":"Naveen Kumar","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nageshwar Rao","Total Meetings":20.0,"Number of Logins":2.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":12300000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100824","Name":"Naveen Kumar","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":18.0,"Number of Logins":5.0,"Login Active Partner":4.0,"#of Disbs":4.0,"Login Amount":28576401.0,"Disb Amount":16176401.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100824","Name":"Naveen Kumar","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nageshwar Rao","Total Meetings":2.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100825","Name":"Rajan Kumar Shah","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Naveen Kaushal","Total Meetings":31.0,"Number of Logins":1.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":4000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100825","Name":"Rajan Kumar Shah","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":64.0,"Number of Logins":6.0,"Login Active Partner":3.0,"#of Disbs":4.0,"Login Amount":41000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100825","Name":"Rajan Kumar Shah","Location":"Gurgaon","L1 Manager Name":"Abhishek Solanki","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":18.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":7500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100826","Name":"Abilash C","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Nageshwar Rao","Total Meetings":15.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100826","Name":"Abilash C","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":23.0,"Number of Logins":5.0,"Login Active Partner":3.0,"#of Disbs":3.0,"Login Amount":45600000.0,"Disb Amount":2100000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":1.0},{"Emp. ID":"AMB100826","Name":"Abilash C","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Nageshwar Rao","Total Meetings":7.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100818","Name":"Asif Haidar Shirgaonkar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Mohammad Danish Khan","Total Meetings":50.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":5.0,"PST Ach":2.0},{"Emp. ID":"AMB100818","Name":"Asif Haidar Shirgaonkar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":50.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":3100000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":5.0,"PST Ach":3.0},{"Emp. ID":"AMB100818","Name":"Asif Haidar Shirgaonkar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100827","Name":"Kundan Singh","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Mohammad Danish Khan","Total Meetings":45.0,"Number of Logins":12.0,"Login Active Partner":4.0,"#of Disbs":9.0,"Login Amount":109300000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":9.0,"PST Ach":4.0},{"Emp. ID":"AMB100827","Name":"Kundan Singh","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":28.0,"Number of Logins":5.0,"Login Active Partner":4.0,"#of Disbs":5.0,"Login Amount":45000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":0.0},{"Emp. ID":"AMB100827","Name":"Kundan Singh","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100828","Name":"Yuvraj Chahar","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Mohammad Danish Khan","Total Meetings":16.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":9.0,"PST Ach":5.0},{"Emp. ID":"AMB100828","Name":"Yuvraj Chahar","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":5.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100828","Name":"Yuvraj Chahar","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100829","Name":"Ajay Jha","Location":"Mumbai","L1 Manager Name":"Faisal Shaikh","Rookie Category":"M1","Rookie Category Month":"Dec-25","Regional Head":"Mohammad Danish Khan","Total Meetings":43.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":3000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":19.0,"PST Ach":13.0},{"Emp. ID":"AMB100829","Name":"Ajay Jha","Location":"Mumbai","L1 Manager Name":"Faisal Shaikh","Rookie Category":"M2","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":68.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":1800000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":14.0,"PST Ach":5.0},{"Emp. ID":"AMB100829","Name":"Ajay Jha","Location":"Mumbai","L1 Manager Name":"Faisal Shaikh","Rookie Category":"M3","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46084.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100812","Name":"Laxman Singh","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":44.0,"Number of Logins":14.0,"Login Active Partner":8.0,"#of Disbs":14.0,"Login Amount":24865100.0,"Disb Amount":10965100.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":2.0},{"Emp. ID":"AMB100812","Name":"Laxman Singh","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":30.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":4000000.0,"Disb Amount":1575800.0,"Exit Date":null,"PST Assigned":4.0,"PST Ach":4.0},{"Emp. ID":"AMB100812","Name":"Laxman Singh","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100833","Name":"Keshav","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":53.0,"Number of Logins":4.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":20800000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":21.0,"PST Ach":16.0},{"Emp. ID":"AMB100833","Name":"Keshav","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":52.0,"Number of Logins":6.0,"Login Active Partner":4.0,"#of Disbs":4.0,"Login Amount":40000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":7.0,"PST Ach":7.0},{"Emp. ID":"AMB100833","Name":"Keshav","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100835","Name":"Ankit Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":8.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":21000000.0,"Disb Amount":20000000.0,"Exit Date":null,"PST Assigned":10.0,"PST Ach":6.0},{"Emp. ID":"AMB100835","Name":"Ankit Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":1.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100835","Name":"Ankit Sharma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100836","Name":"Rakesh C R","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":5.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":7630500.0,"Disb Amount":3170000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100836","Name":"Rakesh C R","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Nageshwar Rao","Total Meetings":3.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":0.0},{"Emp. ID":"AMB100836","Name":"Rakesh C R","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100838","Name":"Rahul Verma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":29.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":10.0,"PST Ach":12.0},{"Emp. ID":"AMB100838","Name":"Rahul Verma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":37.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":7000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":4.0,"PST Ach":4.0},{"Emp. ID":"AMB100838","Name":"Rahul Verma","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100839","Name":"Mohit Singh","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":21.0,"Number of Logins":10.0,"Login Active Partner":2.0,"#of Disbs":10.0,"Login Amount":55736107.0,"Disb Amount":55436107.0,"Exit Date":null,"PST Assigned":12.0,"PST Ach":9.0},{"Emp. ID":"AMB100839","Name":"Mohit Singh","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":13.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":2.0},{"Emp. ID":"AMB100839","Name":"Mohit Singh","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100840","Name":"Pooja Rajput","Location":"Gurgaon","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":5.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100840","Name":"Pooja Rajput","Location":"Gurgaon","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":27.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":18000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":1.0},{"Emp. ID":"AMB100840","Name":"Pooja Rajput","Location":"Gurgaon","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100841","Name":"Pallavi Swapnil Sonaje","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":25.0,"Number of Logins":5.0,"Login Active Partner":5.0,"#of Disbs":5.0,"Login Amount":22100000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100841","Name":"Pallavi Swapnil Sonaje","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":17.0,"Number of Logins":9.0,"Login Active Partner":4.0,"#of Disbs":8.0,"Login Amount":61405000.0,"Disb Amount":3000000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100841","Name":"Pallavi Swapnil Sonaje","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100847","Name":"Pradeep Saxena","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":31.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":2.0},{"Emp. ID":"AMB100847","Name":"Pradeep Saxena","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":16.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":5000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100847","Name":"Pradeep Saxena","Location":"New Delhi","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100852","Name":"Jatin","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46056.0","PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100853","Name":"Aditya Kumar","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":22.0,"Number of Logins":5.0,"Login Active Partner":3.0,"#of Disbs":5.0,"Login Amount":83500000.0,"Disb Amount":54000000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100853","Name":"Aditya Kumar","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":22.0,"Number of Logins":5.0,"Login Active Partner":4.0,"#of Disbs":5.0,"Login Amount":21000000.0,"Disb Amount":2500000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100853","Name":"Aditya Kumar","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100855","Name":"Satinder Pal Singh","Location":"New Delhi","L1 Manager Name":"Manoj Nair","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":20.0,"Number of Logins":6.0,"Login Active Partner":5.0,"#of Disbs":6.0,"Login Amount":38500000.0,"Disb Amount":6300000.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":1.0},{"Emp. ID":"AMB100855","Name":"Satinder Pal Singh","Location":"New Delhi","L1 Manager Name":"Manoj Nair","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":16.0,"Number of Logins":5.0,"Login Active Partner":5.0,"#of Disbs":5.0,"Login Amount":87300000.0,"Disb Amount":9900000.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":0.0},{"Emp. ID":"AMB100855","Name":"Satinder Pal Singh","Location":"New Delhi","L1 Manager Name":"Manoj Nair","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100843","Name":"Taufiqurrehman Nazirauddin Kadr","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":25.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":0.0},{"Emp. ID":"AMB100843","Name":"Taufiqurrehman Nazirauddin Kadr","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":4.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46084.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100848","Name":"Pratik Rakesh Mishra","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":8.0,"PST Ach":0.0},{"Emp. ID":"AMB100848","Name":"Pratik Rakesh Mishra","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46065.0","PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100849","Name":"Yogesh Dohare","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Nirav R Shah","Total Meetings":8.0,"Number of Logins":20.0,"Login Active Partner":13.0,"#of Disbs":20.0,"Login Amount":64520507.0,"Disb Amount":2920507.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100849","Name":"Yogesh Dohare","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":7.0,"Number of Logins":21.0,"Login Active Partner":11.0,"#of Disbs":21.0,"Login Amount":99300000.0,"Disb Amount":600000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100849","Name":"Yogesh Dohare","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100850","Name":"Pramod Bapu Gade","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":20.0,"Number of Logins":12.0,"Login Active Partner":7.0,"#of Disbs":10.0,"Login Amount":128225000.0,"Disb Amount":32225000.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":2.0},{"Emp. ID":"AMB100850","Name":"Pramod Bapu Gade","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":17.0,"Number of Logins":6.0,"Login Active Partner":5.0,"#of Disbs":6.0,"Login Amount":98000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":1.0},{"Emp. ID":"AMB100850","Name":"Pramod Bapu Gade","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100851","Name":"Abhishek D","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Nageshwar Rao","Total Meetings":13.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100851","Name":"Abhishek D","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Nageshwar Rao","Total Meetings":10.0,"Number of Logins":2.0,"Login Active Partner":1.0,"#of Disbs":2.0,"Login Amount":11500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100851","Name":"Abhishek D","Location":"Bangalore","L1 Manager Name":"Gangadhara A S","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Nageshwar Rao","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100837","Name":"Shailendra Gautam","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":35.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":5.0,"PST Ach":1.0},{"Emp. ID":"AMB100837","Name":"Shailendra Gautam","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":9.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100837","Name":"Shailendra Gautam","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100860","Name":"Sandeep Kumar Nirmal","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":42.0,"Number of Logins":8.0,"Login Active Partner":7.0,"#of Disbs":8.0,"Login Amount":69930000.0,"Disb Amount":30000000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100860","Name":"Sandeep Kumar Nirmal","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":12.0,"Number of Logins":4.0,"Login Active Partner":2.0,"#of Disbs":4.0,"Login Amount":35600000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100860","Name":"Sandeep Kumar Nirmal","Location":"Noida","L1 Manager Name":"Deepak Thakur","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100861","Name":"Kajal Prajapati","Location":"Mumbai","L1 Manager Name":"Ashad Akram Pirzade","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100861","Name":"Kajal Prajapati","Location":"Mumbai","L1 Manager Name":"Ashad Akram Pirzade","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100861","Name":"Kajal Prajapati","Location":"Mumbai","L1 Manager Name":"Ashad Akram Pirzade","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100863","Name":"Anand Singh","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46059.0","PST Assigned":2.0,"PST Ach":0.0},{"Emp. ID":"AMB100864","Name":"Saurabh Kamlesh Yadav","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46059.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100865","Name":"Umesh Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":61.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":1.0},{"Emp. ID":"AMB100865","Name":"Umesh Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":23.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100865","Name":"Umesh Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46117.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100866","Name":"Sunil S Kahar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":33.0,"Number of Logins":4.0,"Login Active Partner":3.0,"#of Disbs":4.0,"Login Amount":34100000.0,"Disb Amount":4000000.0,"Exit Date":null,"PST Assigned":1.0,"PST Ach":0.0},{"Emp. ID":"AMB100866","Name":"Sunil S Kahar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":14.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":50500000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100866","Name":"Sunil S Kahar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100867","Name":"Sachin Sahebrao Kadale","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":37.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":3600000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":0.0},{"Emp. ID":"AMB100867","Name":"Sachin Sahebrao Kadale","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":6.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100867","Name":"Sachin Sahebrao Kadale","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46121.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100871","Name":"Vikky Agarwal","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":31.0,"Number of Logins":1.0,"Login Active Partner":1.0,"#of Disbs":1.0,"Login Amount":1000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":2.0},{"Emp. ID":"AMB100871","Name":"Vikky Agarwal","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":9.0,"Number of Logins":2.0,"Login Active Partner":2.0,"#of Disbs":2.0,"Login Amount":6000000.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":1.0},{"Emp. ID":"AMB100871","Name":"Vikky Agarwal","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100872","Name":"Yusuf Mohmad Shaikh","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":79.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":0.0},{"Emp. ID":"AMB100872","Name":"Yusuf Mohmad Shaikh","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":17.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":3.0,"PST Ach":0.0},{"Emp. ID":"AMB100872","Name":"Yusuf Mohmad Shaikh","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100881","Name":"Govind Jha","Location":"Noida","L1 Manager Name":"Abhishek Kashyap","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46063.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100883","Name":"Dhiraj Tembhurne","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":26.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":2.0,"PST Ach":1.0},{"Emp. ID":"AMB100883","Name":"Dhiraj Tembhurne","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46086.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100885","Name":"Zeel Khuthiya","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":50.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100885","Name":"Zeel Khuthiya","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100885","Name":"Zeel Khuthiya","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M3","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100888","Name":"Ujala Rai","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Jan-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100897","Name":"Akash","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":12.0,"Number of Logins":5.0,"Login Active Partner":4.0,"#of Disbs":5.0,"Login Amount":15600000.0,"Disb Amount":4000000.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100897","Name":"Akash","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100897","Name":"Akash","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100898","Name":"Rahul Rai","Location":"Faridabad","L1 Manager Name":"Deepak Thakur","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":26.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100898","Name":"Rahul Rai","Location":"Faridabad","L1 Manager Name":"Deepak Thakur","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100898","Name":"Rahul Rai","Location":"Faridabad","L1 Manager Name":"Deepak Thakur","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100899","Name":"Suyog Sharad Deshmukh","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":19.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100899","Name":"Suyog Sharad Deshmukh","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100899","Name":"Suyog Sharad Deshmukh","Location":"Pune","L1 Manager Name":"Pankaj Rane","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":3115.0,"Number of Logins":351.0,"Login Active Partner":231.0,"#of Disbs":317.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":249.0,"PST Ach":126.0},{"Emp. ID":"AMB100900","Name":"Manish B Sadawarti","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100900","Name":"Manish B Sadawarti","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100900","Name":"Manish B Sadawarti","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100902","Name":"Sanjay Mandor","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100902","Name":"Sanjay Mandor","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100902","Name":"Sanjay Mandor","Location":"Indore","L1 Manager Name":"Vikrant Kumar Rathore","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100903","Name":"Jigyasu Tiwari","Location":"Pune","L1 Manager Name":"Shailesh Ramchandra Deshpande","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100903","Name":"Jigyasu Tiwari","Location":"Pune","L1 Manager Name":"Shailesh Ramchandra Deshpande","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100903","Name":"Jigyasu Tiwari","Location":"Pune","L1 Manager Name":"Shailesh Ramchandra Deshpande","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100905","Name":"Pranav Anant Datar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100905","Name":"Pranav Anant Datar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100905","Name":"Pranav Anant Datar","Location":"Mumbai","L1 Manager Name":"Yuvraj Chahar","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100914","Name":"Prathmesh Koli","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100914","Name":"Prathmesh Koli","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100914","Name":"Prathmesh Koli","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100918","Name":"Rajashekhar B Basa","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100918","Name":"Rajashekhar B Basa","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100918","Name":"Rajashekhar B Basa","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100921","Name":"Sachin Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100921","Name":"Sachin Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100921","Name":"Sachin Arvind Chaudhari","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100922","Name":"Avinash K Jha","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100922","Name":"Avinash K Jha","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100922","Name":"Avinash K Jha","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100923","Name":"Kiran Tiwari","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100923","Name":"Kiran Tiwari","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100923","Name":"Kiran Tiwari","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100917","Name":"Rahul Kumar","Location":"Noida","L1 Manager Name":"Satinder Pal Singh","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMBIN98","Name":"Kriti Gupta","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMBIN98","Name":"Kriti Gupta","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMBIN98","Name":"Kriti Gupta","Location":"Jaipur","L1 Manager Name":"Bhawani Singh","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100927","Name":"Narendra J Sharma","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100927","Name":"Narendra J Sharma","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100927","Name":"Narendra J Sharma","Location":"Mumbai","L1 Manager Name":"Kundan Singh","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100933","Name":"Pawan Kumar Shah","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100933","Name":"Pawan Kumar Shah","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100933","Name":"Pawan Kumar Shah","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100934","Name":"Akhilesh Kumar Mishra","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M1","Rookie Category Month":"Feb-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100934","Name":"Akhilesh Kumar Mishra","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M2","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100934","Name":"Akhilesh Kumar Mishra","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M3","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100939","Name":"Prafulla Swain","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100939","Name":"Prafulla Swain","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100939","Name":"Prafulla Swain","Location":"Mumbai","L1 Manager Name":"Manish B Sadawarti","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100941","Name":"Sitender","Location":"Gurgaon","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100941","Name":"Sitender","Location":"Gurgaon","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100941","Name":"Sitender","Location":"Gurgaon","L1 Manager Name":"Gourav Kumar Aggarwal","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100943","Name":"Vivek Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100943","Name":"Vivek Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100943","Name":"Vivek Kumar","Location":"Noida","L1 Manager Name":"Abhishek Kumar Srivastava","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100947","Name":"Mahboob Malik","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100947","Name":"Mahboob Malik","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100947","Name":"Mahboob Malik","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100954","Name":"Avinash Kumar Jha","Location":"New Delhi","L1 Manager Name":"Satinder Pal Singh","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100954","Name":"Avinash Kumar Jha","Location":"New Delhi","L1 Manager Name":"Satinder Pal Singh","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100954","Name":"Avinash Kumar Jha","Location":"New Delhi","L1 Manager Name":"Satinder Pal Singh","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100951","Name":"Kalpesh Gorakhnath Tarse","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":"46117.0","PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100957","Name":"Ankit Shukla","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100957","Name":"Ankit Shukla","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100957","Name":"Ankit Shukla","Location":"New Delhi","L1 Manager Name":"Sanjeev Kumar","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100960","Name":"Sandip Shivnath Prajapati","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100960","Name":"Sandip Shivnath Prajapati","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100960","Name":"Sandip Shivnath Prajapati","Location":"Mumbai","L1 Manager Name":"Shambhunath Gupta","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100961","Name":"Ramdas Ankush Halnor","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100961","Name":"Ramdas Ankush Halnor","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100961","Name":"Ramdas Ankush Halnor","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100964","Name":"Rahul Jaiswar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100964","Name":"Rahul Jaiswar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100964","Name":"Rahul Jaiswar","Location":"Mumbai","L1 Manager Name":"Vinay Mondkar","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100971","Name":"Jagpal Singh Rawat","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100971","Name":"Jagpal Singh Rawat","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100971","Name":"Jagpal Singh Rawat","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100972","Name":"Deepak Kumar Singh","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100972","Name":"Deepak Kumar Singh","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100972","Name":"Deepak Kumar Singh","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100973","Name":"Ritesh Kumar Srivastav","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100973","Name":"Ritesh Kumar Srivastav","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100973","Name":"Ritesh Kumar Srivastav","Location":"Gurgaon","L1 Manager Name":"Naveen Kaushal","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100975","Name":"Dinesh Vishwas Dhore","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100975","Name":"Dinesh Vishwas Dhore","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100975","Name":"Dinesh Vishwas Dhore","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100977","Name":"Sujit Bankar","Location":"Mumbai","L1 Manager Name":"Rajashekhar B Basa","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100977","Name":"Sujit Bankar","Location":"Mumbai","L1 Manager Name":"Rajashekhar B Basa","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100977","Name":"Sujit Bankar","Location":"Mumbai","L1 Manager Name":"Rajashekhar B Basa","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100978","Name":"Bhavesh R Ladher","Location":"Rajkot","L1 Manager Name":"Rajput Hiteshsinh Chandusinh","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100978","Name":"Bhavesh R Ladher","Location":"Rajkot","L1 Manager Name":"Rajput Hiteshsinh Chandusinh","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100978","Name":"Bhavesh R Ladher","Location":"Rajkot","L1 Manager Name":"Rajput Hiteshsinh Chandusinh","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100979","Name":"Pramesh Jain","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100979","Name":"Pramesh Jain","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100979","Name":"Pramesh Jain","Location":"Ahmedabad","L1 Manager Name":"Nirav R Shah","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Nirav R Shah","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100980","Name":"Rahul Konkane","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100980","Name":"Rahul Konkane","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100980","Name":"Rahul Konkane","Location":"Pune","L1 Manager Name":"Jigyasu Tiwari","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100981","Name":"Kanhaiya Gupta","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100981","Name":"Kanhaiya Gupta","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100981","Name":"Kanhaiya Gupta","Location":"Mumbai","L1 Manager Name":"Mohammad Danish Khan","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Mohammad Danish Khan","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100983","Name":"Ashwin Sharde","Location":"Pune","L1 Manager Name":"Vicky A Veer","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100983","Name":"Ashwin Sharde","Location":"Pune","L1 Manager Name":"Vicky A Veer","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100983","Name":"Ashwin Sharde","Location":"Pune","L1 Manager Name":"Vicky A Veer","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Shailesh Ramchandra Deshpande","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100990","Name":"Hishan","Location":"Gurgaon","L1 Manager Name":"Ritesh Kumar Srivastav","Rookie Category":"M1","Rookie Category Month":"Mar-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100990","Name":"Hishan","Location":"Gurgaon","L1 Manager Name":"Ritesh Kumar Srivastav","Rookie Category":"M2","Rookie Category Month":"Apr-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0},{"Emp. ID":"AMB100990","Name":"Hishan","Location":"Gurgaon","L1 Manager Name":"Ritesh Kumar Srivastav","Rookie Category":"M3","Rookie Category Month":"May-26","Regional Head":"Naveen Kaushal","Total Meetings":0.0,"Number of Logins":0.0,"Login Active Partner":0.0,"#of Disbs":0.0,"Login Amount":0.0,"Disb Amount":0.0,"Exit Date":null,"PST Assigned":0.0,"PST Ach":0.0}];
+}
+
+init();
+</script>
+</body>
+</html>
